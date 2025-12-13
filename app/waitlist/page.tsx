@@ -1,4 +1,5 @@
 import Image from "next/image";
+import { redirect } from "next/navigation";
 import ThankYouClient from "./ThankYouClient";
 import {
   BUILDINGS,
@@ -10,35 +11,38 @@ import {
 
 export const dynamic = "force-dynamic";
 
-type SearchParams = { ref?: string | string[] };
+type SearchParams = {
+  ref?: string | string[];
+  success?: string | string[];
+  error?: string | string[];
+  pos?: string | string[];
+  code?: string | string[];
+};
 
-type ActionResult =
-  | {
-      ok: true;
-      position: number | null;
-      referral_code: string | null;
-    }
-  | {
-      ok: false;
-      reason: "validation" | "duplicate" | "unknown";
-      message?: string;
-    };
+function firstString(v: string | string[] | undefined) {
+  if (typeof v === "string") return v;
+  if (Array.isArray(v)) return v[0] ?? "";
+  return "";
+}
 
 export default async function WaitlistPage(props: {
   searchParams: Promise<SearchParams> | SearchParams;
 }) {
   const searchParams = await props.searchParams;
 
-  // Stats
   const stats = await getTotalStats();
 
   // Referral from query: ?ref=XXXX
-  const refVal = searchParams?.ref;
-  const refRaw =
-    typeof refVal === "string" ? refVal : Array.isArray(refVal) ? refVal[0] : "";
+  const refRaw = firstString(searchParams?.ref);
   const referredBy = refRaw.trim().toUpperCase() || null;
 
-  async function action(formData: FormData): Promise<ActionResult> {
+  // UI status from redirect query params
+  const success = firstString(searchParams?.success) === "1";
+  const error = firstString(searchParams?.error); // "validation" | "duplicate" | "unknown"
+  const pos = firstString(searchParams?.pos);
+  const code = firstString(searchParams?.code);
+
+  async function action(formData: FormData): Promise<void> {
     "use server";
 
     const first_name = String(formData.get("first_name") ?? "").trim();
@@ -47,7 +51,7 @@ export default async function WaitlistPage(props: {
     const interests = formData.getAll("interests").map(String);
 
     if (!first_name || !email || !building) {
-      return { ok: false, reason: "validation", message: "Manglende felter" };
+      redirect("/waitlist?error=validation");
     }
 
     const result = await createSignup({
@@ -59,18 +63,17 @@ export default async function WaitlistPage(props: {
     });
 
     if (!result.ok) {
-      return {
-        ok: false,
-        reason: (result.reason as ActionResult extends { ok: false; reason: infer R } ? R : never) ?? "unknown",
-        message: result.message,
-      };
+      const reason = result.reason ?? "unknown";
+      redirect(`/waitlist?error=${encodeURIComponent(reason)}`);
     }
 
-    return {
-      ok: true,
-      position: result.position ?? null,
-      referral_code: result.referral_code ?? null,
-    };
+    const qp = new URLSearchParams();
+    qp.set("success", "1");
+    if (result.position != null) qp.set("pos", String(result.position));
+    if (result.referral_code) qp.set("code", result.referral_code);
+    if (referredBy) qp.set("ref", referredBy);
+
+    redirect(`/waitlist?${qp.toString()}`);
   }
 
   return (
@@ -123,6 +126,54 @@ export default async function WaitlistPage(props: {
             {stats.count} på ventelisten · Åbner ved {WAITLIST_COPY.openGoal}
           </p>
         </div>
+
+        {/* Status banner */}
+        {(success || error) && (
+          <div
+            style={{
+              marginTop: 14,
+              padding: 12,
+              borderRadius: 14,
+              border: "1px solid rgba(255,255,255,0.10)",
+              background: success
+                ? "rgba(59,233,240,0.10)"
+                : "rgba(255,0,229,0.10)",
+            }}
+          >
+            {success ? (
+              <div style={{ lineHeight: 1.4 }}>
+                <div style={{ fontWeight: 800 }}>Du er skrevet op ✅</div>
+                <div style={{ color: "#A7B0C0", fontSize: 13, marginTop: 6 }}>
+                  {pos ? (
+                    <>
+                      Din plads: <strong style={{ color: "white" }}>{pos}</strong>
+                      <br />
+                    </>
+                  ) : null}
+                  {code ? (
+                    <>
+                      Din referral-kode:{" "}
+                      <strong style={{ color: "white" }}>{code}</strong>
+                    </>
+                  ) : (
+                    "Tak! Vi giver lyd når dit område åbner."
+                  )}
+                </div>
+              </div>
+            ) : (
+              <div style={{ lineHeight: 1.4 }}>
+                <div style={{ fontWeight: 800 }}>Kunne ikke oprette</div>
+                <div style={{ color: "#A7B0C0", fontSize: 13, marginTop: 6 }}>
+                  {error === "duplicate"
+                    ? "Den email er allerede skrevet op."
+                    : error === "validation"
+                      ? "Udfyld venligst alle felter."
+                      : "Noget gik galt. Prøv igen."}
+                </div>
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Form card */}
         <section
@@ -286,6 +337,7 @@ export default async function WaitlistPage(props: {
               Vi spammer ikke. Kun når dit område åbner.
             </p>
 
+            {/* Optional: still renders client-side "confetti" etc */}
             <ThankYouClient goal={WAITLIST_COPY.openGoal} />
 
             {referredBy ? (
