@@ -12,20 +12,33 @@ export const dynamic = "force-dynamic";
 
 type SearchParams = { ref?: string | string[] };
 
+type ActionResult =
+  | {
+      ok: true;
+      position: number | null;
+      referral_code: string | null;
+    }
+  | {
+      ok: false;
+      reason: "validation" | "duplicate" | "unknown";
+      message?: string;
+    };
+
 export default async function WaitlistPage(props: {
   searchParams: Promise<SearchParams> | SearchParams;
 }) {
   const searchParams = await props.searchParams;
 
+  // Stats
   const stats = await getTotalStats();
 
+  // Referral from query: ?ref=XXXX
   const refVal = searchParams?.ref;
   const refRaw =
     typeof refVal === "string" ? refVal : Array.isArray(refVal) ? refVal[0] : "";
-
   const referredBy = refRaw.trim().toUpperCase() || null;
 
-  async function action(formData: FormData) {
+  async function action(formData: FormData): Promise<ActionResult> {
     "use server";
 
     const first_name = String(formData.get("first_name") ?? "").trim();
@@ -34,16 +47,30 @@ export default async function WaitlistPage(props: {
     const interests = formData.getAll("interests").map(String);
 
     if (!first_name || !email || !building) {
-      return { ok: false as const, reason: "validation" as const };
+      return { ok: false, reason: "validation", message: "Manglende felter" };
     }
 
-    return await createSignup({
+    const result = await createSignup({
       first_name,
       email,
       building,
       interests,
       referred_by: referredBy,
     });
+
+    if (!result.ok) {
+      return {
+        ok: false,
+        reason: (result.reason as ActionResult extends { ok: false; reason: infer R } ? R : never) ?? "unknown",
+        message: result.message,
+      };
+    }
+
+    return {
+      ok: true,
+      position: result.position ?? null,
+      referral_code: result.referral_code ?? null,
+    };
   }
 
   return (
@@ -58,13 +85,14 @@ export default async function WaitlistPage(props: {
       }}
     >
       <div style={{ width: "100%", maxWidth: 420 }}>
+        {/* Header */}
         <div style={{ textAlign: "center", marginTop: 16 }}>
           <div style={{ display: "flex", justifyContent: "center" }}>
             <Image
               src="/loonies-logo.png"
               alt="Loonies logo"
-              width={140}
-              height={44}
+              width={160}
+              height={50}
               priority
               style={{
                 filter: "drop-shadow(0 0 14px rgba(59,233,240,0.28))",
@@ -72,7 +100,14 @@ export default async function WaitlistPage(props: {
             />
           </div>
 
-          <p style={{ color: "#6B7690", fontSize: 12, marginTop: 6, letterSpacing: 0.3 }}>
+          <p
+            style={{
+              color: "#6B7690",
+              fontSize: 12,
+              marginTop: 6,
+              letterSpacing: 0.3,
+            }}
+          >
             Hyperlokalt fællesskab
           </p>
 
@@ -80,13 +115,16 @@ export default async function WaitlistPage(props: {
             {WAITLIST_COPY.title}
           </h1>
 
-          <p style={{ color: "#A7B0C0", lineHeight: 1.5 }}>{WAITLIST_COPY.subtitle}</p>
+          <p style={{ color: "#A7B0C0", lineHeight: 1.5, margin: 0 }}>
+            {WAITLIST_COPY.subtitle}
+          </p>
 
-          <p style={{ color: "#6B7690", marginTop: 10 }}>
+          <p style={{ color: "#6B7690", marginTop: 10, marginBottom: 0 }}>
             {stats.count} på ventelisten · Åbner ved {WAITLIST_COPY.openGoal}
           </p>
         </div>
 
+        {/* Form card */}
         <section
           style={{
             background: "#0B1326",
@@ -98,7 +136,13 @@ export default async function WaitlistPage(props: {
         >
           <form action={action}>
             <label style={{ display: "block", marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: "#A7B0C0", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#A7B0C0",
+                  marginBottom: 6,
+                }}
+              >
                 Fornavn
               </div>
               <input
@@ -119,7 +163,13 @@ export default async function WaitlistPage(props: {
             </label>
 
             <label style={{ display: "block", marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: "#A7B0C0", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#A7B0C0",
+                  marginBottom: 6,
+                }}
+              >
                 Email
               </div>
               <input
@@ -141,7 +191,13 @@ export default async function WaitlistPage(props: {
             </label>
 
             <label style={{ display: "block", marginBottom: 10 }}>
-              <div style={{ fontSize: 12, color: "#A7B0C0", marginBottom: 6 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#A7B0C0",
+                  marginBottom: 6,
+                }}
+              >
                 Hvilken bygning bor du i?
               </div>
               <select
@@ -171,7 +227,13 @@ export default async function WaitlistPage(props: {
             </label>
 
             <div style={{ marginTop: 14 }}>
-              <div style={{ fontSize: 12, color: "#A7B0C0", marginBottom: 8 }}>
+              <div
+                style={{
+                  fontSize: 12,
+                  color: "#A7B0C0",
+                  marginBottom: 8,
+                }}
+              >
                 Hvad kunne du finde på at mødes om?
               </div>
 
@@ -204,7 +266,7 @@ export default async function WaitlistPage(props: {
                 borderRadius: 14,
                 border: "none",
                 marginTop: 16,
-                fontWeight: 700,
+                fontWeight: 800,
                 cursor: "pointer",
                 background: "linear-gradient(90deg, #3BE9F0, #FF00E5)",
                 color: "white",
@@ -213,14 +275,28 @@ export default async function WaitlistPage(props: {
               Skriv mig op
             </button>
 
-            <p style={{ color: "#6B7690", fontSize: 12, textAlign: "center", marginTop: 10 }}>
+            <p
+              style={{
+                color: "#6B7690",
+                fontSize: 12,
+                textAlign: "center",
+                marginTop: 10,
+              }}
+            >
               Vi spammer ikke. Kun når dit område åbner.
             </p>
 
             <ThankYouClient goal={WAITLIST_COPY.openGoal} />
 
             {referredBy ? (
-              <p style={{ color: "#6B7690", fontSize: 12, marginTop: 12, textAlign: "center" }}>
+              <p
+                style={{
+                  color: "#6B7690",
+                  fontSize: 12,
+                  marginTop: 12,
+                  textAlign: "center",
+                }}
+              >
                 Referral registreret: <strong>{referredBy}</strong>
               </p>
             ) : null}
