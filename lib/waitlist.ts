@@ -26,6 +26,8 @@ export const BUILDINGS = [
   "Hosta Hus",
   "Dahlia Hus",
   "Torveporten",
+  "Iris Hus",
+  "Filippa Haven",
 ] as const;
 
 export type Building = (typeof BUILDINGS)[number];
