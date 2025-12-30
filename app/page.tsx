@@ -15,7 +15,7 @@ export default async function HomePage() {
         color: "white",
         display: "flex",
         justifyContent: "center",
-        padding: 24,
+        padding: "clamp(12px, 5vw, 24px)",
       }}
     >
       <div style={{ width: "100%", maxWidth: 520 }}>
@@ -55,7 +55,7 @@ export default async function HomePage() {
           <h1
             style={{
               textAlign: "center",
-              fontSize: 30,
+              fontSize: "clamp(24px, 7vw, 30px)",
               lineHeight: 1.1,
               marginTop: 18,
               marginBottom: 10,

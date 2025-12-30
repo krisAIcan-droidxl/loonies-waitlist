@@ -80,7 +80,7 @@ export default async function WaitlistPage(props: {
         background: "#050B18",
         minHeight: "100vh",
         color: "white",
-        padding: 24,
+        padding: "clamp(12px, 5vw, 24px)",
         display: "flex",
         justifyContent: "center",
       }}

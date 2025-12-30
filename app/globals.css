@@ -24,3 +24,12 @@ body {
   color: var(--foreground);
   font-family: Arial, Helvetica, sans-serif;
 }
+
+/* Mobile-friendly adjustments */
+@media (max-width: 400px) {
+  input,
+  select,
+  button {
+    font-size: 16px !important; /* Prevents zoom on iOS Safari */
+  }
+}
