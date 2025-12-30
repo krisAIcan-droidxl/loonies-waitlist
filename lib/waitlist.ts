@@ -62,7 +62,6 @@ export const WAITLIST_COPY = {
   title: "Loonies - Early Access",
   subtitle:
     "Spontane møder med folk i dit område - helt lokalt. Ingen dating. Ingen støj.",
-  openGoal: 100,
 };
 
 // ============================================================================

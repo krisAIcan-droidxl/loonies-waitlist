@@ -121,7 +121,7 @@ export default async function WaitlistPage(props: {
           </p>
 
           <p style={{ color: "#6B7690", marginTop: 10, marginBottom: 0 }}>
-            {stats.count} på ventelisten · Åbner ved {WAITLIST_COPY.openGoal}
+            {stats.count} på ventelisten
           </p>
         </div>
 
