@@ -10,6 +10,7 @@ import { supabaseServer } from "./supabase-server";
  * This is stored in the DB `area` column.
  */
 export const WAITLIST_AREA = "valby";
+export const DEFAULT_BUILDING = "Ukendt";
 
 /**
  * Buildings list – kept for potential future use, but not shown in UI.
@@ -130,7 +131,7 @@ export async function createSignup(params: {
       area: WAITLIST_AREA,
       first_name: params.first_name.trim(),
       email: params.email.trim().toLowerCase(),
-      building: null, // Always null - open for everyone
+      building: DEFAULT_BUILDING, // Required by DB even when open for everyone
       interests: params.interests.length > 0 ? params.interests : null,
       referral_code,
       referred_by: params.referred_by ?? null,
